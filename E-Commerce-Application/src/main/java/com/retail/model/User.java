@@ -2,12 +2,16 @@ package com.retail.model;
 
 import com.retail.enums.UserRole;
 
+import jakarta.persistence.DiscriminatorColumn;
+import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.Pattern;
-
+import jakarta.persistence.Inheritance;
+import jakarta.persistence.InheritanceType;
+@Entity
+@Inheritance(strategy = InheritanceType.JOINED)
+//@DiscriminatorColumn(name = "userRole")
 public abstract class User {
 	
 	@Id
@@ -17,7 +21,7 @@ public abstract class User {
 	private String username;
 	private String email;
 	private String password;
-	private boolean isEmailvarified;
+	private boolean isEmailVerified;
 	private boolean isDeleted;
 	private UserRole userRole;
 	
@@ -53,13 +57,7 @@ public abstract class User {
 	public void setPassword(String password) {
 		this.password = password;
 	}
-	public boolean isEmailvarified() {
-		return isEmailvarified;
-	}
-	public void setEmailvarified(boolean isEmailvarified) {
-		this.isEmailvarified = isEmailvarified;
-	}
-	public boolean isDeleted() {
+		public boolean isDeleted() {
 		return isDeleted;
 	}
 	public void setDeleted(boolean isDeleted) {
@@ -72,5 +70,12 @@ public abstract class User {
 	public void setDisplayName(String displayName) {
 		this.displayName = displayName;
 	}
+	public boolean isEmailVerified() {
+		return isEmailVerified;
+	}
+	public void setEmailVerified(boolean isEmailVerified) {
+		this.isEmailVerified = isEmailVerified;
+	}
+	
 
 }

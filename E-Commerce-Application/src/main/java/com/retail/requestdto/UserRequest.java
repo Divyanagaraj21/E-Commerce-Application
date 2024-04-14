@@ -1,5 +1,7 @@
 package com.retail.requestdto;
 
+import com.retail.enums.UserRole;
+
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -15,8 +17,14 @@ public class UserRequest {
 	@Pattern(regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=])(?=\\S+$).{8,}$", message = "Password must"
 			+ " contain at least one letter, one number, one special character")
 	private String password;
-	private boolean isEmailvarified;
-	private boolean isDeleted;
+	private UserRole userRole;
+
+	public UserRole getUserRole() {
+		return userRole;
+	}
+	public void setUserRole(UserRole userRole) {
+		this.userRole = userRole;
+	}
 	public String getName() {
 		return name;
 	}
@@ -35,17 +43,4 @@ public class UserRequest {
 	public void setPassword(String password) {
 		this.password = password;
 	}
-	public boolean isEmailvarified() {
-		return isEmailvarified;
-	}
-	public void setEmailvarified(boolean isEmailvarified) {
-		this.isEmailvarified = isEmailvarified;
-	}
-	public boolean isDeleted() {
-		return isDeleted;
-	}
-	public void setDeleted(boolean isDeleted) {
-		this.isDeleted = isDeleted;
-	}
-
 }
