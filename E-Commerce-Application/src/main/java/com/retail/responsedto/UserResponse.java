@@ -1,4 +1,5 @@
 package com.retail.responsedto;
+import com.retail.enums.UserRole;
 
 public class UserResponse {
 	private int userId;
@@ -6,6 +7,22 @@ public class UserResponse {
 	private String userName;
 	private String email;
 	private boolean isDeleted;
+	private boolean isEmailVerified;
+	private UserRole userRole;
+	
+	public boolean isEmailVerified() {
+		return isEmailVerified;
+	}
+	public void setEmailVerified(boolean isEmailVerified) {
+		this.isEmailVerified = isEmailVerified;
+	}
+	public UserRole getUserRole() {
+		return userRole;
+	}
+	public void setUserRole(UserRole userRole) {
+		this.userRole = userRole;
+	}
+
 	public int getUserId() {
 		return userId;
 	}
@@ -37,6 +54,4 @@ public class UserResponse {
 		this.isDeleted = isDeleted;
 	}
 	
-	
-
 }
