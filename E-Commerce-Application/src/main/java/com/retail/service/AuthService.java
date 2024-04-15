@@ -6,7 +6,7 @@ import com.retail.requestdto.UserRequest;
 import com.retail.responsedto.UserResponse;
 import com.retail.util.ResponseStructure;
 
-public interface UserService {
+public interface AuthService {
 
 	ResponseEntity<ResponseStructure<UserResponse>> userRegistration(UserRequest userRequest);
 

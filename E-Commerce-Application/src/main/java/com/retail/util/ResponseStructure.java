@@ -1,5 +1,8 @@
 package com.retail.util;
 
+import org.springframework.stereotype.Component;
+
+@Component
 public class ResponseStructure<T> {
 	private int status;
 	private String message;

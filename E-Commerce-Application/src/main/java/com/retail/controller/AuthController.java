@@ -1,23 +1,27 @@
 package com.retail.controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.retail.requestdto.UserRequest;
 import com.retail.responsedto.UserResponse;
-import com.retail.service.UserService;
+import com.retail.service.AuthService;
 import com.retail.util.ResponseStructure;
 
 @RestController
-public class UserController {
-	private UserService userService;
+@RequestMapping("/api/v1")
+public class AuthController {
+	private AuthService userService;
 
-	public UserController(UserService userService) {
+	public AuthController(AuthService userService) {
 		super();
 		this.userService = userService;
 	}
 	
+	@PostMapping("/users")
 	public ResponseEntity<ResponseStructure<UserResponse>> userRegistration(@RequestBody UserRequest userRequest)
 	{
 		return userService.userRegistration(userRequest);

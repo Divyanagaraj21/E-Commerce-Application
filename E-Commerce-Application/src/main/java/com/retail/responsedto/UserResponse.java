@@ -3,7 +3,7 @@ import com.retail.enums.UserRole;
 
 public class UserResponse {
 	private int userId;
-	private String name;
+	private String displayName;
 	private String userName;
 	private String email;
 	private boolean isDeleted;
@@ -29,13 +29,14 @@ public class UserResponse {
 	public void setUserId(int userId) {
 		this.userId = userId;
 	}
-	public String getName() {
-		return name;
+	
+		public String getDisplayName() {
+		return displayName;
 	}
-	public void setName(String name) {
-		this.name = name;
+	public void setDisplayName(String displayName) {
+		this.displayName = displayName;
 	}
-	public String getUserName() {
+		public String getUserName() {
 		return userName;
 	}
 	public void setUserName(String userName) {
