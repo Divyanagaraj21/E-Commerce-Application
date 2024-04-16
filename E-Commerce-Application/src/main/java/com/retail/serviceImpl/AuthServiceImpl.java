@@ -6,7 +6,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import com.retail.cache.CacheStore;
 import com.retail.enums.UserRole;
+import com.retail.exception.InvalidOTPException;
 import com.retail.exception.InvalidUserRoleException;
 import com.retail.exception.UserAlreadyExistByEmailException;
 import com.retail.model.Customer;
@@ -22,22 +24,31 @@ public class AuthServiceImpl implements AuthService {
 
 	private ResponseStructure<UserResponse> responseStructure;
 	private UserRepository userRepo;
+	private CacheStore<String> otpCache;
+	private CacheStore<User> userCache;
 
 
 
-	public AuthServiceImpl(ResponseStructure<UserResponse> responseStructure, UserRepository userRepo) {
+	public AuthServiceImpl(ResponseStructure<UserResponse> responseStructure, UserRepository userRepo,
+			CacheStore<String> otpCache, CacheStore<User> userCache) {
 		super();
 		this.responseStructure = responseStructure;
 		this.userRepo = userRepo;
+		this.otpCache = otpCache;
+		this.userCache = userCache;
 	}
 
 	@Override
-	public ResponseEntity<ResponseStructure<UserResponse>> userRegistration(UserRequest userRequest) {
+	public ResponseEntity<String> userRegistration(UserRequest userRequest) {
 		if(userRepo.existsByEmail(userRequest.getEmail()))
 			throw new UserAlreadyExistByEmailException("Failed to register user");
 		User user=mapToChildentity(userRequest);
 		String otp=generateOTP();
 
+		otpCache.add("otp", otp);
+		userCache.add("user", user);
+
+		return ResponseEntity.ok(otp);
 
 		//		if(userRequest.getUserRole()==UserRole.CUSTOMER)
 		//		{
@@ -58,7 +69,7 @@ public class AuthServiceImpl implements AuthService {
 	}
 
 	private String generateOTP() {
-		return String.valueOf(new Random().nextInt(6));
+		return String.valueOf(new Random().nextInt(999999));
 	}
 
 	private <T extends User> T mapToChildentity(UserRequest userRequest) {
@@ -77,19 +88,12 @@ public class AuthServiceImpl implements AuthService {
 		//user.setUsername(str[0]);
 		user.setUsername(userRequest.getEmail().split("@gmail.com")[0]);
 		user.setUserRole(userRequest.getUserRole());
+		user.setDeleted(false);
+		user.setEmailVerified(false);
 		return (T) user;
 
 	}
 
-	//	private Seller mapToSellerEntity(UserRequest userRequest, Seller seller) {
-	//		seller.setDisplayName(userRequest.getName());
-	//		seller.setEmail(userRequest.getEmail());
-	//		seller.setPassword(userRequest.getPassword());
-	//		String[] str=userRequest.getEmail().split("@");
-	//		seller.setUsername(str[0]);
-	//		seller.setUserRole(userRequest.getUserRole());
-	//		return seller;
-	//	}
 
 	private UserResponse mapToUserResponse(User user) {
 		UserResponse userResponse=new UserResponse();
@@ -103,14 +107,19 @@ public class AuthServiceImpl implements AuthService {
 		return userResponse;
 	}
 
-	//	private Customer mapToCustomerEntity(UserRequest userRequest, Customer customer) {
-	//		customer.setDisplayName(userRequest.getName());
-	//		customer.setEmail(userRequest.getEmail());
-	//		customer.setPassword(userRequest.getPassword());
-	//		String[] str=userRequest.getEmail().split("@");
-	//		customer.setUsername(str[0]);
-	//		customer.setUserRole(userRequest.getUserRole());
-	//		return customer;
-	//	} 
+	@Override
+	public ResponseEntity<ResponseStructure<UserResponse>> verifyOTP(String otp) {
+		if(!otpCache.get("otp").equals(otp))
+			throw new InvalidOTPException("Verification Failed");
+		User user=userCache.get("user");
+		user.setEmailVerified(true);
+		//		User user=userRepo.save(mapToUserResponse(user));
+		return ResponseEntity.status(HttpStatus.CREATED)
+				.body(responseStructure.setStatus(HttpStatus.CREATED.value())
+				.setMessage("User Registered Successfully")
+				.setData(mapToUserResponse(userCache.get("user"))));	
+	}
+
+
 
 }

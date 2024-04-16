@@ -8,6 +8,8 @@ import com.retail.util.ResponseStructure;
 
 public interface AuthService {
 
-	ResponseEntity<ResponseStructure<UserResponse>> userRegistration(UserRequest userRequest);
+	ResponseEntity<String> userRegistration(UserRequest userRequest);
+
+	ResponseEntity<ResponseStructure<UserResponse>> verifyOTP(String otp);
 
 }

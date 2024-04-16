@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.retail.requestdto.UserRequest;
@@ -22,9 +23,15 @@ public class AuthController {
 	}
 	
 	@PostMapping("/users")
-	public ResponseEntity<ResponseStructure<UserResponse>> userRegistration(@RequestBody UserRequest userRequest)
+	public ResponseEntity<String> userRegistration(@RequestBody UserRequest userRequest)
 	{
 		return userService.userRegistration(userRequest);
+	}
+	
+	@PostMapping("/verify-email")
+	public ResponseEntity<ResponseStructure<UserResponse>> verifyOTP(@RequestParam String otp)
+	{
+		return userService.verifyOTP(otp);
 	}
 	
 }
