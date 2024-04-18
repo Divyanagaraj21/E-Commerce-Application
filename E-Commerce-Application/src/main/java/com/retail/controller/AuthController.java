@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.retail.requestdto.OtpRequest;
+import com.retail.requestdto.OTPRequest;
 import com.retail.requestdto.UserRequest;
 import com.retail.responsedto.UserResponse;
 import com.retail.service.AuthService;
@@ -31,7 +31,7 @@ public class AuthController {
 	}
 	
 	@PostMapping("/verify-email")
-	public ResponseEntity<ResponseStructure<UserResponse>> verifyOTP(@RequestBody OtpRequest otpRequest)
+	public ResponseEntity<ResponseStructure<UserResponse>> verifyOTP(@RequestBody OTPRequest otpRequest)
 	{
 		return userService.verifyOTP(otpRequest);
 	}

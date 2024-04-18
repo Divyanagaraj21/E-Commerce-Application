@@ -1,5 +1,6 @@
 package com.retail.serviceImpl;
 
+import java.util.Date;
 import java.util.Random;
 
 import org.springframework.http.HttpStatus;
@@ -10,19 +11,24 @@ import com.retail.cache.CacheStore;
 import com.retail.enums.UserRole;
 import com.retail.exception.InvalidOTPException;
 import com.retail.exception.InvalidUserRoleException;
-import com.retail.exception.OtpExpiredException;
+import com.retail.exception.OTPExpiredException;
 import com.retail.exception.RegistrationSessionExpiredException;
 import com.retail.exception.UserAlreadyExistByEmailException;
+import com.retail.mail_service.MailService;
+import com.retail.mail_service.MessageModel;
 import com.retail.model.Customer;
 import com.retail.model.Seller;
 import com.retail.model.User;
 import com.retail.repository.UserRepository;
-import com.retail.requestdto.OtpRequest;
+import com.retail.requestdto.OTPRequest;
 import com.retail.requestdto.UserRequest;
 import com.retail.responsedto.UserResponse;
 import com.retail.service.AuthService;
 import com.retail.util.ResponseStructure;
 import com.retail.util.SimpleResponseStructure;
+
+import jakarta.mail.MessagingException;
+
 @Service
 public class AuthServiceImpl implements AuthService {
 
@@ -31,15 +37,18 @@ public class AuthServiceImpl implements AuthService {
 	private CacheStore<String> otpCache;
 	private CacheStore<User> userCache;
 	private SimpleResponseStructure simpleResponse;
+	private MailService mailService;
 
 	public AuthServiceImpl(ResponseStructure<UserResponse> responseStructure, UserRepository userRepo,
-			CacheStore<String> otpCache, CacheStore<User> userCache, SimpleResponseStructure simpleResponse) {
+			CacheStore<String> otpCache, CacheStore<User> userCache, SimpleResponseStructure simpleResponse,
+			MailService mailService) {
 		super();
 		this.responseStructure = responseStructure;
 		this.userRepo = userRepo;
 		this.otpCache = otpCache;
 		this.userCache = userCache;
 		this.simpleResponse = simpleResponse;
+		this.mailService = mailService;
 	}
 
 	@Override
@@ -52,25 +61,33 @@ public class AuthServiceImpl implements AuthService {
 		otpCache.add(user.getEmail(), otp);
 		userCache.add(user.getEmail(), user);
 
+		//send mail with otp
+		try {
+			sendOTP(user,otp);
+		} catch (MessagingException e) {
+			e.printStackTrace();
+		}
+
 		return ResponseEntity.ok(simpleResponse.setStatus(HttpStatus.ACCEPTED.value())
 				.setMessage("verify OTP sent throug mail to complete | "+ "OTP expires in 1minute"));
 
-				//		if(userRequest.getUserRole()==UserRole.CUSTOMER)
-				//		{
-				//			Customer customer=mapToCustomerEntity(userRequest,new Customer());
-				//			User user=userRepo.save(customer);
-				//			return ResponseEntity.ok(responseStructure.setStatus(HttpStatus.OK.value())
-				//					.setMessage("User Registered Successfully")
-				//					.setData(mapToUserResponse(user)));
-				//		}
-				//		else 
-				//		{
-				//			Seller seller=mapToSellerEntity(userRequest,new Seller());
-				//			User user=userRepo.save(seller);
-				//			return ResponseEntity.ok(responseStructure.setStatus(HttpStatus.OK.value())
-				//					.setMessage("User Registered Successfully")
-				//					.setData(mapToUserResponse(user)));
-				//		}
+	}
+
+	private void sendOTP(User user, String otp) throws MessagingException {
+		MessageModel messageModel=new MessageModel();
+		messageModel.setTo(user.getEmail());
+		messageModel.setSubject("verify your OTP");
+		messageModel.setText("<p> Hi, <br>"
+				+"Thanks for your interest in E-Commerce-Application"
+				+" Please verify your mail Id using the OTP given below.</p>"
+				+"<br>"
+				+"<h1>"+otp+"</h1>"
+				+"<br>"
+				+"<p>Please ignore if its not yoy</p>"
+				+"<br>"
+				+"with best regards"
+				+"<h3>E-Commerce-Application</h3>");
+		mailService.sendMailMessage(messageModel);
 	}
 
 	private String generateOTP() {
@@ -113,20 +130,28 @@ public class AuthServiceImpl implements AuthService {
 	}
 
 	@Override
-	public ResponseEntity<ResponseStructure<UserResponse>> verifyOTP(OtpRequest otpRequest) {
-		if(otpCache.get(otpRequest.getEmail()) ==null)
-			throw new OtpExpiredException("Registration Failed");
+	public ResponseEntity<ResponseStructure<UserResponse>> verifyOTP(OTPRequest otpRequest) {
+
+		System.out.println(otpRequest.getEmail());
+		System.out.println(otpRequest.getOtp());
+		if(otpCache.get(otpRequest.getEmail())==null) 
+			throw new OTPExpiredException("the otp time is expired");
+
 		if(!otpCache.get(otpRequest.getEmail()).equals(otpRequest.getOtp()))
-			throw new InvalidOTPException("Verification Failed");
+			throw new InvalidOTPException("OTP is Invalided");
+
 		User user=userCache.get(otpRequest.getEmail());
-		if(user==null) throw new RegistrationSessionExpiredException("Registration Session Expired");
+		if(user==null)
+			throw new RegistrationSessionExpiredException("the user time out to registered");
+
 		user.setEmailVerified(true);
-		//		User user=userRepo.save(mapToUserResponse(user));
-		return ResponseEntity.status(HttpStatus.CREATED)
-				.body(responseStructure.setStatus(HttpStatus.CREATED.value())
-						.setMessage("User Registered Successfully")
-						.setData(mapToUserResponse(userCache.get("user"))));	
+		//userRepo.save(user);
+		return ResponseEntity.status(HttpStatus.CREATED.value()).body(responseStructure.setStatus(HttpStatus.CREATED.
+				value())
+				.setData(mapToUserResponse(user))
+				.setMessage("User Object is created Successfully"));	
 	}
+
 
 
 

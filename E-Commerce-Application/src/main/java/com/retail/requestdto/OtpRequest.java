@@ -1,6 +1,6 @@
 package com.retail.requestdto;
 
-public class OtpRequest {
+public class OTPRequest {
 
 	private String email;
 	private String otp;

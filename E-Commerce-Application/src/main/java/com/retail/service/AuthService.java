@@ -2,7 +2,7 @@ package com.retail.service;
 
 import org.springframework.http.ResponseEntity;
 
-import com.retail.requestdto.OtpRequest;
+import com.retail.requestdto.OTPRequest;
 import com.retail.requestdto.UserRequest;
 import com.retail.responsedto.UserResponse;
 import com.retail.util.ResponseStructure;
@@ -12,6 +12,6 @@ public interface AuthService {
 
 	ResponseEntity<SimpleResponseStructure> userRegistration(UserRequest userRequest);
 
-	ResponseEntity<ResponseStructure<UserResponse>> verifyOTP(OtpRequest otpRequest);
+	ResponseEntity<ResponseStructure<UserResponse>> verifyOTP(OTPRequest otpRequest);
 
 }
