@@ -1,27 +1,45 @@
 package com.retail.serviceImpl;
 
+import java.time.Duration;
 import java.util.Date;
 import java.util.Random;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.retail.cache.CacheStore;
 import com.retail.enums.UserRole;
+import com.retail.exception.InavlidUserCredentialException;
 import com.retail.exception.InvalidOTPException;
+import com.retail.exception.InvalidPasswordException;
 import com.retail.exception.InvalidUserRoleException;
 import com.retail.exception.OTPExpiredException;
 import com.retail.exception.RegistrationSessionExpiredException;
 import com.retail.exception.UserAlreadyExistByEmailException;
+import com.retail.jwt.JwtService;
 import com.retail.mail_service.MailService;
 import com.retail.mail_service.MessageModel;
+import com.retail.model.AccessToken;
 import com.retail.model.Customer;
+import com.retail.model.RefreshToken;
 import com.retail.model.Seller;
 import com.retail.model.User;
+import com.retail.repository.AccessTokenRepository;
+import com.retail.repository.RefreshTokenRepository;
 import com.retail.repository.UserRepository;
+import com.retail.requestdto.AuthRequest;
 import com.retail.requestdto.OTPRequest;
 import com.retail.requestdto.UserRequest;
+import com.retail.responsedto.AuthResponse;
 import com.retail.responsedto.UserResponse;
 import com.retail.service.AuthService;
 import com.retail.util.ResponseStructure;
@@ -38,10 +56,26 @@ public class AuthServiceImpl implements AuthService {
 	private CacheStore<User> userCache;
 	private SimpleResponseStructure simpleResponse;
 	private MailService mailService;
+	private AuthenticationManager authenticationManager;
+	private JwtService jwtService;
+	private ResponseStructure<AuthResponse> authResponseStructure;
+	private AccessTokenRepository accessRepo;
+	private RefreshTokenRepository refreshRepo;
+	private PasswordEncoder passwordEncoder;
+
+	@Value("${myapp.jwt.access.expiration}")
+	private long accessExpiration;
+
+	@Value("${myapp.jwt.refresh.expiration}")
+	private long refreshExpiration;
+	
+
 
 	public AuthServiceImpl(ResponseStructure<UserResponse> responseStructure, UserRepository userRepo,
 			CacheStore<String> otpCache, CacheStore<User> userCache, SimpleResponseStructure simpleResponse,
-			MailService mailService) {
+			MailService mailService, AuthenticationManager authenticationManager, JwtService jwtService,
+			ResponseStructure<AuthResponse> authResponseStructure, AccessTokenRepository accessRepo,
+			RefreshTokenRepository refreshRepo, PasswordEncoder passwordEncoder) {
 		super();
 		this.responseStructure = responseStructure;
 		this.userRepo = userRepo;
@@ -49,10 +83,19 @@ public class AuthServiceImpl implements AuthService {
 		this.userCache = userCache;
 		this.simpleResponse = simpleResponse;
 		this.mailService = mailService;
+		this.authenticationManager = authenticationManager;
+		this.jwtService = jwtService;
+		this.authResponseStructure = authResponseStructure;
+		this.accessRepo = accessRepo;
+		this.refreshRepo = refreshRepo;
+		this.passwordEncoder = passwordEncoder;
 	}
+
+
 
 	@Override
 	public ResponseEntity<SimpleResponseStructure> userRegistration(UserRequest userRequest) {
+
 		if(userRepo.existsByEmail(userRequest.getEmail()))
 			throw new UserAlreadyExistByEmailException("Failed to register user");
 		User user=mapToChildentity(userRequest);
@@ -73,7 +116,10 @@ public class AuthServiceImpl implements AuthService {
 
 	}
 
+
+
 	private void sendOTP(User user, String otp) throws MessagingException {
+
 		MessageModel messageModel=new MessageModel();
 		messageModel.setTo(user.getEmail());
 		messageModel.setSubject("verify your OTP");
@@ -90,9 +136,14 @@ public class AuthServiceImpl implements AuthService {
 		mailService.sendMailMessage(messageModel);
 	}
 
+
+
+
 	private String generateOTP() {
 		return String.valueOf(new Random().nextInt(999999));
 	}
+
+
 
 	private <T extends User> T mapToChildentity(UserRequest userRequest) {
 		UserRole role=userRequest.getUserRole();
@@ -101,11 +152,11 @@ public class AuthServiceImpl implements AuthService {
 		case SELLER -> user = new Seller();
 		case CUSTOMER -> user = new Customer();
 		default -> new InvalidUserRoleException("Failed to register user");
-
 		}
+
 		user.setDisplayName(userRequest.getName());
 		user.setEmail(userRequest.getEmail());
-		user.setPassword(userRequest.getPassword());
+		user.setPassword(passwordEncoder.encode(userRequest.getPassword()));
 		//String[] str=userRequest.getEmail().split("@");
 		//user.setUsername(str[0]);
 		user.setUsername(userRequest.getEmail().split("@gmail.com")[0]);
@@ -145,12 +196,98 @@ public class AuthServiceImpl implements AuthService {
 			throw new RegistrationSessionExpiredException("the user time out to registered");
 
 		user.setEmailVerified(true);
-		//userRepo.save(user);
+		userRepo.save(user);
 		return ResponseEntity.status(HttpStatus.CREATED.value()).body(responseStructure.setStatus(HttpStatus.CREATED.
 				value())
 				.setData(mapToUserResponse(user))
 				.setMessage("User Object is created Successfully"));	
 	}
+
+
+	//user login
+
+	@Override
+	public ResponseEntity<ResponseStructure<AuthResponse>> userLogin(AuthRequest authRequest) {
+		String username=authRequest.getUsername().split("@gmail.com")[0];
+							Authentication authentication=authenticationManager.authenticate(
+									new UsernamePasswordAuthenticationToken(username, authRequest.getPassword()));
+							if(!authentication.isAuthenticated()) throw new InavlidUserCredentialException("failed to login");
+
+							SecurityContextHolder.getContext().setAuthentication(authentication);
+
+//		if(!SecurityContextHolder.getContext().getAuthentication().isAuthenticated()) throw new InavlidUserCredentialException("failed to login");
+
+		// generate access and refresh token
+		HttpHeaders header=new HttpHeaders();
+		userRepo.findByUsername(username).ifPresent(user->{
+			generateAccessToken(user,user.getUserRole().toString(),header);
+			generateRefreshToken(user,user.getUserRole().toString(),header);
+		});
+
+		return userRepo.findByUsername(username).map(user->{
+			return ResponseEntity.ok().headers(header).body(authResponseStructure.setStatus(HttpStatus.OK.value())
+					.setMessage("user login successful")
+					.setData(mapToAuthResponse(user)));
+		}).orElseThrow();
+
+	}
+
+
+	private AuthResponse mapToAuthResponse(User user) {
+		AuthResponse authResponse=new AuthResponse();
+		authResponse.setUserId(user.getUserId());
+		authResponse.setUsername(user.getUsername());
+		authResponse.setUserRole(user.getUserRole());
+		authResponse.setAccessExpiration(accessExpiration/1000);
+		authResponse.setRefreshExpiration(refreshExpiration/1000);
+		return authResponse;
+	}
+
+
+
+	private void generateRefreshToken(User user,String role, HttpHeaders header) {
+
+
+		String token=jwtService.generateRefreshToken(user.getUsername(),role);
+		header.add(HttpHeaders.SET_COOKIE, configureCookie("rt",token,refreshExpiration));
+		RefreshToken rt=new RefreshToken();
+		rt.setUser(user);
+		rt.setToken(token);
+		rt.setExpiration(refreshExpiration);
+		rt.setBlocked(false);
+		refreshRepo.save(rt);
+
+
+	}
+
+
+	private void generateAccessToken(User user,String role, HttpHeaders header) {
+
+		String token=jwtService.generateAccessToken(user.getUsername(),role);
+		header.add(HttpHeaders.SET_COOKIE, configureCookie("at",token,accessExpiration));
+		AccessToken at=new AccessToken();
+		at.setUser(user);
+		at.setToken(token);
+		at.setExpiration(accessExpiration);
+		at.setBlocked(false);
+		accessRepo.save(at);
+
+
+	}
+
+	private String configureCookie(String name, String value, long maxAge) {
+
+		return ResponseCookie.from(name, value)
+				.domain("localhost")
+				.path("/")
+				.httpOnly(true)
+				.secure(false)
+				.maxAge(Duration.ofMillis(maxAge))
+				.sameSite("Lax")
+				.build().toString();
+	}
+
+
 
 
 

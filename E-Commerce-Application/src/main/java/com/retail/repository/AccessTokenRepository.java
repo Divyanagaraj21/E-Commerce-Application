@@ -5,12 +5,11 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import com.retail.model.User;
+import com.retail.model.AccessToken;
 @Repository
-public interface UserRepository extends JpaRepository<User, Integer> {
+public interface AccessTokenRepository extends JpaRepository<AccessToken, Integer> {
 
-	boolean existsByEmail(String email);
 
-	Optional<User> findByUsername(String username);
+	boolean existsByTokenAndIsBlocked(String at, boolean b);
 
 }
